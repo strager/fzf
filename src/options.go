@@ -57,6 +57,7 @@ const usage = `usage: fzf [options]
     --border              Draw border above and below the finder
     --margin=MARGIN       Screen margin (TRBL / TB,RL / T,RL,B / T,R,B,L)
     --inline-info         Display finder info inline with the query
+    --progress            Display finder progress spinner and meter
     --prompt=STR          Input prompt (default: '> ')
     --header=STR          String to print as header
     --header-lines=N      The first N lines of the input are treated as header
@@ -168,6 +169,7 @@ type Options struct {
 	FileWord    bool
 	InlineInfo  bool
 	JumpLabels  string
+	Progress    bool
 	Prompt      string
 	Query       string
 	Select1     bool
@@ -218,6 +220,7 @@ func defaultOptions() *Options {
 		FileWord:    false,
 		InlineInfo:  false,
 		JumpLabels:  defaultJumpLabels,
+		Progress:    true,
 		Prompt:      "> ",
 		Query:       "",
 		Select1:     false,
@@ -1062,6 +1065,10 @@ func parseOptions(opts *Options, allArgs []string) {
 			opts.PrintQuery = true
 		case "--no-print-query":
 			opts.PrintQuery = false
+		case "--progress":
+			opts.Progress = true
+		case "--no-progress":
+			opts.Progress = false
 		case "--prompt":
 			opts.Prompt = nextString(allArgs, &i, "prompt string required")
 		case "--sync":

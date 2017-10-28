@@ -57,6 +57,7 @@ var emptyLine = itemLine{}
 type Terminal struct {
 	initDelay  time.Duration
 	inlineInfo bool
+	showProgress bool
 	prompt     string
 	promptLen  int
 	reverse    bool
@@ -350,6 +351,7 @@ func NewTerminal(opts *Options, eventBox *util.EventBox) *Terminal {
 	t := Terminal{
 		initDelay:  delay,
 		inlineInfo: opts.InlineInfo,
+		showProgress: opts.Progress,
 		reverse:    opts.Reverse,
 		fullscreen: fullscreen,
 		hscroll:    opts.Hscroll,
@@ -441,6 +443,10 @@ func (t *Terminal) UpdateHeader(header []string) {
 
 // UpdateProgress updates the search progress
 func (t *Terminal) UpdateProgress(progress float32) {
+	if !t.showProgress {
+		return
+	}
+
 	t.mutex.Lock()
 	newProgress := int(progress * 100)
 	changed := t.progress != newProgress
@@ -659,24 +665,31 @@ func (t *Terminal) printInfo() {
 			return
 		}
 		t.move(0, pos, true)
-		if t.reading {
-			t.window.CPrint(tui.ColSpinner, t.strong, " < ")
-		} else {
-			t.window.CPrint(tui.ColPrompt, t.strong, " < ")
+		if t.showProgress {
+			if t.reading {
+				t.window.CPrint(tui.ColSpinner, t.strong, " < ")
+			} else {
+				t.window.CPrint(tui.ColPrompt, t.strong, " < ")
+			}
 		}
 		pos += len(" < ")
 	} else {
-		t.move(1, 0, true)
-		if t.reading {
-			duration := int64(spinnerDuration)
-			idx := (time.Now().UnixNano() % (duration * int64(len(_spinner)))) / duration
-			t.window.CPrint(tui.ColSpinner, t.strong, _spinner[idx])
+		if t.showProgress {
+			t.move(1, 0, true)
+			if t.reading {
+				duration := int64(spinnerDuration)
+				idx := (time.Now().UnixNano() % (duration * int64(len(_spinner)))) / duration
+				t.window.CPrint(tui.ColSpinner, t.strong, _spinner[idx])
+			}
 		}
 		t.move(1, 2, false)
 		pos = 2
 	}
 
-	output := fmt.Sprintf("%d/%d", t.merger.Length(), t.count)
+	output := ""
+	if t.showProgress {
+		output += fmt.Sprintf("%d/%d", t.merger.Length(), t.count)
+	}
 	if t.toggleSort {
 		if t.sort {
 			output += " +S"
@@ -687,8 +700,10 @@ func (t *Terminal) printInfo() {
 	if t.multi && len(t.selected) > 0 {
 		output += fmt.Sprintf(" (%d)", len(t.selected))
 	}
-	if t.progress > 0 && t.progress < 100 {
-		output += fmt.Sprintf(" (%d%%)", t.progress)
+	if t.showProgress {
+		if t.progress > 0 && t.progress < 100 {
+			output += fmt.Sprintf(" (%d%%)", t.progress)
+		}
 	}
 	if !t.success && t.count == 0 {
 		output += " [ERROR]"
